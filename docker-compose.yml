@@ -1,0 +1,24 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agriconnect_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-agriconnect}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-agriconnect_password}
+      POSTGRES_DB: ${DB_NAME:-agriconnect_db}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - agriconnect_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-agriconnect} -d ${DB_NAME:-agriconnect_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  agriconnect_pgdata:
+    driver: local
