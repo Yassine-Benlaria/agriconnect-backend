@@ -30,3 +30,7 @@ Thumbs.db
 
 # docker volumes
 pgdata/
+
+# Uploaded files
+uploads/*
+!uploads/**/.gitkeep
