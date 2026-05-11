@@ -214,7 +214,38 @@ export class OrdersService {
     return order;
   }
 
+  /**
+   * PATCH /orders/:id/confirm-pickup — FARMER side of dual-confirmation.
+   *
+   * Sets `farmerConfirmedPickup = true`. If the deliverer has already confirmed
+   * their side, the status transitions to IN_TRANSIT (§7).
+   */
+  async farmerConfirmPickup(orderId: string, farmerId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.farmerId !== farmerId) {
+      throw new ForbiddenException('You are not authorised to act on this order');
+    }
+    if (order.status !== OrderStatus.AWAITING_DELIVERER_PICKUP) {
+      throw new ConflictException(
+        `Cannot confirm pickup in current state: ${order.status}`,
+      );
+    }
+    if (order.farmerConfirmedPickup) {
+      throw new ConflictException('You have already confirmed pickup');
+    }
+
+    const update: Partial<Order> = { farmerConfirmedPickup: true };
+    if (order.delivererConfirmedPickup) {
+      update.status = OrderStatus.IN_TRANSIT;
+    }
+
+    await this.orderRepo.update(orderId, update);
+    return this.findOne(orderId);
+  }
+
   // ── §7 State machine — Farmer response ───────────────────────────────────
+
 
   /**
    * PATCH /orders/:id/accept — FARMER accepts a PENDING order.

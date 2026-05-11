@@ -60,6 +60,20 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
+  /**
+   * PATCH /api/orders/:id/confirm-pickup — FARMER side of dual-confirmation.
+   * Sets farmerConfirmedPickup=true; if deliverer already confirmed → IN_TRANSIT.
+   */
+  @Patch(':id/confirm-pickup')
+  @Roles(UserRole.FARMER)
+  @HttpCode(HttpStatus.OK)
+  farmerConfirmPickup(
+    @Param('id', ParseUUIDPipe) orderId: string,
+    @CurrentUser('id') farmerId: string,
+  ): Promise<Order> {
+    return this.ordersService.farmerConfirmPickup(orderId, farmerId);
+  }
+
   // ── §7 State machine — Farmer response ───────────────────────────────────
 
   /**
