@@ -12,6 +12,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { Cart } from '../cart/entities/cart.entity';
 import { CartItem } from '../cart/entities/cart-item.entity';
 import { FarmerProfile } from '../users/entities/farmer-profile.entity';
+import { DelivererProfile } from '../users/entities/deliverer-profile.entity';
 import { Commune } from '../geo/entities/commune.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -215,10 +216,15 @@ export class OrdersService {
   }
 
   /**
-   * PATCH /orders/:id/confirm-pickup — FARMER side of dual-confirmation.
+   * PATCH /orders/:id/confirm-pickup — FARMER side.
    *
-   * Sets `farmerConfirmedPickup = true`. If the deliverer has already confirmed
-   * their side, the status transitions to IN_TRANSIT (§7).
+   * Handles both delivery paths (§6.4 + §6.5):
+   *
+   *  WITHOUT_DELIVERY (AWAITING_BUYER_PICKUP):
+   *    farmerConfirmedPickup=true; buyerConfirmedPickup=true  → COMPLETED
+   *
+   *  WITH_DELIVERY (AWAITING_DELIVERER_PICKUP):
+   *    farmerConfirmedPickup=true; delivererConfirmedPickup=true → IN_TRANSIT
    */
   async farmerConfirmPickup(orderId: string, farmerId: string): Promise<Order> {
     const order = await this.orderRepo.findOne({ where: { id: orderId } });
@@ -226,7 +232,12 @@ export class OrdersService {
     if (order.farmerId !== farmerId) {
       throw new ForbiddenException('You are not authorised to act on this order');
     }
-    if (order.status !== OrderStatus.AWAITING_DELIVERER_PICKUP) {
+
+    const validStatuses = [
+      OrderStatus.AWAITING_BUYER_PICKUP,
+      OrderStatus.AWAITING_DELIVERER_PICKUP,
+    ];
+    if (!validStatuses.includes(order.status)) {
       throw new ConflictException(
         `Cannot confirm pickup in current state: ${order.status}`,
       );
@@ -236,8 +247,81 @@ export class OrdersService {
     }
 
     const update: Partial<Order> = { farmerConfirmedPickup: true };
-    if (order.delivererConfirmedPickup) {
-      update.status = OrderStatus.IN_TRANSIT;
+
+    if (order.status === OrderStatus.AWAITING_BUYER_PICKUP) {
+      // §6.4 WITHOUT_DELIVERY: both buyer + farmer confirm → COMPLETED
+      if (order.buyerConfirmedPickup) update.status = OrderStatus.COMPLETED;
+    } else {
+      // §6.5 WITH_DELIVERY: both farmer + deliverer confirm → IN_TRANSIT
+      if (order.delivererConfirmedPickup) update.status = OrderStatus.IN_TRANSIT;
+    }
+
+    await this.orderRepo.update(orderId, update);
+    return this.findOne(orderId);
+  }
+
+  /**
+   * PATCH /orders/:id/buyer-confirm-pickup — BUYER side of §6.4 (WITHOUT_DELIVERY).
+   *
+   * Sets buyerConfirmedPickup=true.
+   * If farmer has already confirmed → COMPLETED.
+   */
+  async buyerConfirmPickup(orderId: string, buyerId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.buyerId !== buyerId) {
+      throw new ForbiddenException('You are not authorised to act on this order');
+    }
+    if (order.status !== OrderStatus.AWAITING_BUYER_PICKUP) {
+      throw new ConflictException(
+        `Cannot confirm pickup in current state: ${order.status}`,
+      );
+    }
+    if (order.buyerConfirmedPickup) {
+      throw new ConflictException('You have already confirmed pickup');
+    }
+
+    const update: Partial<Order> = { buyerConfirmedPickup: true };
+    if (order.farmerConfirmedPickup) update.status = OrderStatus.COMPLETED;
+
+    await this.orderRepo.update(orderId, update);
+    return this.findOne(orderId);
+  }
+
+  /**
+   * PATCH /orders/:id/confirm-delivery — BUYER side of §6.5 delivery confirmation.
+   *
+   * Sets buyerConfirmedDelivery=true.
+   * If deliverer has already confirmed → COMPLETED + releases deliverer profile.
+   */
+  async buyerConfirmDelivery(orderId: string, buyerId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.buyerId !== buyerId) {
+      throw new ForbiddenException('You are not authorised to act on this order');
+    }
+    if (order.status !== OrderStatus.IN_TRANSIT) {
+      throw new ConflictException(
+        `Cannot confirm delivery in current state: ${order.status}`,
+      );
+    }
+    if (order.buyerConfirmedDelivery) {
+      throw new ConflictException('You have already confirmed delivery');
+    }
+
+    const update: Partial<Order> = { buyerConfirmedDelivery: true };
+
+    if (order.delivererConfirmedDelivery) {
+      update.status = OrderStatus.COMPLETED;
+      // Release the deliverer so they can accept new tasks
+      if (order.delivererId) {
+        await this.dataSource
+          .createQueryBuilder()
+          .update(DelivererProfile)
+          .set({ isAvailable: true, currentOrderId: null })
+          .where('user_id = :uid', { uid: order.delivererId })
+          .execute();
+      }
     }
 
     await this.orderRepo.update(orderId, update);

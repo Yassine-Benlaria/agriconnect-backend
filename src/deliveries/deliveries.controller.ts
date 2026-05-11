@@ -62,4 +62,19 @@ export class DeliveriesController {
   ): Promise<Order> {
     return this.deliveriesService.confirmPickup(orderId, delivererId);
   }
+
+  /**
+   * PATCH /api/deliveries/:orderId/confirm-delivery — DELIVERER confirms §6.5.
+   * Sets delivererConfirmedDelivery=true.
+   * Both buyerConfirmedDelivery + delivererConfirmedDelivery set → COMPLETED.
+   * On COMPLETED, deliverer profile is released (isAvailable → true).
+   */
+  @Patch(':orderId/confirm-delivery')
+  @HttpCode(HttpStatus.OK)
+  confirmDelivery(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser('id') delivererId: string,
+  ): Promise<Order> {
+    return this.deliveriesService.confirmDelivery(orderId, delivererId);
+  }
 }

@@ -149,4 +149,42 @@ export class DeliveriesService {
     if (!order) throw new NotFoundException('Order not found');
     return order;
   }
+
+  /**
+   * PATCH /deliveries/:orderId/confirm-delivery — DELIVERER side of §6.5.
+   *
+   * Sets delivererConfirmedDelivery=true.
+   * If buyer has already confirmed → COMPLETED + profile.isAvailable → true.
+   */
+  async confirmDelivery(orderId: string, delivererId: string): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.delivererId !== delivererId) {
+      throw new ForbiddenException('This order is not assigned to you');
+    }
+    if (order.status !== OrderStatus.IN_TRANSIT) {
+      throw new ConflictException(
+        `Cannot confirm delivery in current state: ${order.status}`,
+      );
+    }
+    if (order.delivererConfirmedDelivery) {
+      throw new ConflictException('You have already confirmed delivery');
+    }
+
+    const update: Partial<Order> = { delivererConfirmedDelivery: true };
+
+    if (order.buyerConfirmedDelivery) {
+      update.status = OrderStatus.COMPLETED;
+      // Release deliverer profile so they can accept new tasks
+      await this.dataSource
+        .createQueryBuilder()
+        .update(DelivererProfile)
+        .set({ isAvailable: true, currentOrderId: null })
+        .where('user_id = :uid', { uid: delivererId })
+        .execute();
+    }
+
+    await this.orderRepo.update(orderId, update);
+    return this.loadOrder(orderId);
+  }
 }

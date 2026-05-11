@@ -61,8 +61,10 @@ export class OrdersController {
   }
 
   /**
-   * PATCH /api/orders/:id/confirm-pickup — FARMER side of dual-confirmation.
-   * Sets farmerConfirmedPickup=true; if deliverer already confirmed → IN_TRANSIT.
+   * PATCH /api/orders/:id/confirm-pickup — FARMER confirms pickup.
+   *
+   * WITHOUT_DELIVERY (§6.4): farmerConfirmedPickup=true; both set → COMPLETED
+   * WITH_DELIVERY    (§6.5): farmerConfirmedPickup=true; both set → IN_TRANSIT
    */
   @Patch(':id/confirm-pickup')
   @Roles(UserRole.FARMER)
@@ -72,6 +74,36 @@ export class OrdersController {
     @CurrentUser('id') farmerId: string,
   ): Promise<Order> {
     return this.ordersService.farmerConfirmPickup(orderId, farmerId);
+  }
+
+  /**
+   * PATCH /api/orders/:id/buyer-confirm-pickup — BUYER confirms they collected (§6.4).
+   * Only valid for WITHOUT_DELIVERY orders in AWAITING_BUYER_PICKUP.
+   * Both farmerConfirmedPickup + buyerConfirmedPickup set → COMPLETED.
+   */
+  @Patch(':id/buyer-confirm-pickup')
+  @Roles(UserRole.BUYER)
+  @HttpCode(HttpStatus.OK)
+  buyerConfirmPickup(
+    @Param('id', ParseUUIDPipe) orderId: string,
+    @CurrentUser('id') buyerId: string,
+  ): Promise<Order> {
+    return this.ordersService.buyerConfirmPickup(orderId, buyerId);
+  }
+
+  /**
+   * PATCH /api/orders/:id/confirm-delivery — BUYER confirms they received goods (§6.5).
+   * Only valid for WITH_DELIVERY orders in IN_TRANSIT.
+   * Both buyerConfirmedDelivery + delivererConfirmedDelivery set → COMPLETED.
+   */
+  @Patch(':id/confirm-delivery')
+  @Roles(UserRole.BUYER)
+  @HttpCode(HttpStatus.OK)
+  buyerConfirmDelivery(
+    @Param('id', ParseUUIDPipe) orderId: string,
+    @CurrentUser('id') buyerId: string,
+  ): Promise<Order> {
+    return this.ordersService.buyerConfirmDelivery(orderId, buyerId);
   }
 
   // ── §7 State machine — Farmer response ───────────────────────────────────
