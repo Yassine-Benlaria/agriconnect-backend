@@ -36,6 +36,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!user) {
       throw new UnauthorizedException('User not found or token invalid');
     }
+    if (user.isBanned) {
+      throw new UnauthorizedException('Your account has been suspended');
+    }
 
     return user; // becomes request.user
   }

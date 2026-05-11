@@ -69,6 +69,14 @@ export class User {
   @Column({ name: 'rating_count', type: 'int', default: 0 })
   ratingCount: number;
 
+  /**
+   * When true the user is locked out: JwtStrategy rejects their tokens with 401.
+   * Banning also nulls out refreshTokenHash so all sessions are immediately
+   * invalidated; the short-lived access token (15 min) is the only residual window.
+   */
+  @Column({ name: 'is_banned', type: 'boolean', default: false })
+  isBanned: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
