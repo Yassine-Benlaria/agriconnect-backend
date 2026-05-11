@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { FarmerProfile } from '../users/entities/farmer-profile.entity';
 import { Commune } from '../geo/entities/commune.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { RejectOrderDto } from './dto/reject-order.dto';
 import { DeliveryOption } from '../common/enums/delivery-option.enum';
 import { OrderStatus } from '../common/enums/order-status.enum';
 import { DistanceService } from './distance.service';
@@ -209,6 +211,87 @@ export class OrdersService {
       },
     });
     if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  // ── §7 State machine — Farmer response ───────────────────────────────────
+
+  /**
+   * PATCH /orders/:id/accept — FARMER accepts a PENDING order.
+   *
+   * State transition (§7):
+   *   PENDING + WITHOUT_DELIVERY → AWAITING_BUYER_PICKUP
+   *   PENDING + WITH_DELIVERY    → AWAITING_DELIVERER_ASSIGN
+   */
+  async acceptOrder(orderId: string, farmerId: string): Promise<Order> {
+    const order = await this.assertFarmerCanRespond(orderId, farmerId);
+
+    const nextStatus =
+      order.deliveryOption === DeliveryOption.WITHOUT_DELIVERY
+        ? OrderStatus.AWAITING_BUYER_PICKUP
+        : OrderStatus.AWAITING_DELIVERER_ASSIGN;
+
+    await this.orderRepo.update(orderId, { status: nextStatus });
+    return this.findOne(orderId);
+  }
+
+  /**
+   * PATCH /orders/:id/reject — FARMER rejects a PENDING order.
+   *
+   * State transition (§7):
+   *   PENDING → REJECTED
+   *
+   * A non-empty `rejectionReason` is required so the buyer always receives
+   * actionable feedback (e.g. "Out of stock", "Minimum order not met").
+   */
+  async rejectOrder(
+    orderId: string,
+    farmerId: string,
+    dto: RejectOrderDto,
+  ): Promise<Order> {
+    await this.assertFarmerCanRespond(orderId, farmerId);
+
+    await this.orderRepo.update(orderId, {
+      status: OrderStatus.REJECTED,
+      rejectionReason: dto.rejectionReason,
+    });
+
+    return this.findOne(orderId);
+  }
+
+  // ── Private guard helpers ─────────────────────────────────────────────────
+
+  /**
+   * Loads the order and verifies:
+   *  1. It exists
+   *  2. The calling farmer owns it (farmerId match)
+   *  3. It is currently in PENDING status (the only state that allows response)
+   *
+   * Throws:
+   *  - 404 NotFoundException    — order not found
+   *  - 403 ForbiddenException   — order belongs to a different farmer
+   *  - 409 ConflictException    — order is not in PENDING status
+   */
+  private async assertFarmerCanRespond(
+    orderId: string,
+    farmerId: string,
+  ): Promise<Order> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.farmerId !== farmerId) {
+      throw new ForbiddenException(
+        'You are not authorised to respond to this order',
+      );
+    }
+    if (order.status !== OrderStatus.PENDING) {
+      throw new ConflictException(
+        `Order cannot be accepted or rejected in its current state: ${order.status}`,
+      );
+    }
+
     return order;
   }
 }
