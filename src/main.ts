@@ -4,12 +4,16 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import morgan from 'morgan';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // ── Global prefix ────────────────────────────────────────────────────────
   app.setGlobalPrefix('api');
+
+  // ── Logger ───────────────────────────────────────────────────────────────
+  app.use(morgan('dev'));
 
   // ── Static files — serve uploads/ for product images ────────────────────
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });

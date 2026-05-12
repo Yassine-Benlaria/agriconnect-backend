@@ -9,17 +9,57 @@
 ## Table of Contents
 
 1. [Auth](#1-auth)
-2. [Products](#2-products)
-3. [Cart](#3-cart)
-4. [Orders](#4-orders)
-5. [Deliveries](#5-deliveries)
-6. [Reviews](#6-reviews)
-7. [Admin](#7-admin)
-8. [Enum Reference](#8-enum-reference)
+2. [Geo](#2-geo)
+3. [Products](#3-products)
+4. [Cart](#4-cart)
+5. [Orders](#5-orders)
+6. [Deliveries](#6-deliveries)
+7. [Reviews](#7-reviews)
+8. [Admin](#8-admin)
+9. [Enum Reference](#9-enum-reference)
 
 ---
 
-## 1. Auth
+## 2. Geo
+
+> **Authentication:** None — these endpoints are intentionally public so clients can populate wilaya/commune dropdowns during registration before a token exists.
+
+### 2.1 List All Wilayas
+```
+GET /geo/wilayas
+Authorization: None
+```
+**Response `200`**
+```json
+[
+  { "id": 1, "code": 1, "nameLatin": "Adrar",   "nameArabic": "أدرار" },
+  { "id": 2, "code": 2, "nameLatin": "Chlef",   "nameArabic": "الشلف" }
+]
+```
+> Sorted by official wilaya code (01 → 58).
+
+---
+
+### 2.2 List Communes by Wilaya
+```
+GET /geo/wilayas/:wilayaId/communes
+Authorization: None
+```
+**Path param:** `wilayaId` — integer (wilaya primary key).
+
+**Response `200`**
+```json
+[
+  { "id": 3, "nameLatin": "Adrar",    "nameArabic": "أدرار",    "lat": 27.874, "lng": 0.293,  "wilayaId": 1 },
+  { "id": 7, "nameLatin": "Reggane", "nameArabic": "رقان",     "lat": 26.710, "lng": 0.165,  "wilayaId": 1 }
+]
+```
+> Sorted alphabetically by `nameLatin`. Returns `404` if `wilayaId` does not exist.
+
+---
+
+## 3. Auth
+
 
 ### 1.1 Register — Buyer
 ```
