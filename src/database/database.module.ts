@@ -22,7 +22,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         autoLoadEntities: true,
         // Keep synchronize:true for MVP / development only.
         // Must be set to false and replaced by migrations before production.
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
+        // synchronize: config.get<string>('NODE_ENV') !== 'production',
+        synchronize: false,
         logging: config.get<string>('NODE_ENV') === 'development',
       }),
     }),
