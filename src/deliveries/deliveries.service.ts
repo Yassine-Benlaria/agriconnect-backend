@@ -58,6 +58,45 @@ export class DeliveriesService {
   }
 
   /**
+   * GET /deliveries/current
+   * Returns the deliverer's active task (if any).
+   */
+  async getCurrentTask(delivererId: string): Promise<Order | null> {
+    const profile = await this.delivererProfileRepo.findOne({
+      where: { userId: delivererId },
+    });
+    if (!profile) throw new NotFoundException('Deliverer profile not found');
+    if (!profile.currentOrderId) return null;
+
+    return this.loadOrder(profile.currentOrderId);
+  }
+
+  /**
+   * GET /deliveries/:orderId
+   * Returns details of a specific delivery task.
+   */
+  async getTaskDetail(orderId: string, delivererId: string): Promise<Order> {
+    const order = await this.loadOrder(orderId);
+    
+    // Security check: either it's unassigned in their wilaya, or it's assigned to them.
+    if (order.delivererId && order.delivererId !== delivererId) {
+       throw new ForbiddenException('This task is assigned to another deliverer');
+    }
+
+    if (!order.delivererId) {
+      const deliverer = await this.userRepo.findOneOrFail({
+        where: { id: delivererId },
+        select: { id: true, wilayaId: true },
+      });
+      if (order.farmerCommune.wilayaId !== deliverer.wilayaId) {
+        throw new ForbiddenException('This order is outside your registered wilaya');
+      }
+    }
+
+    return order;
+  }
+
+  /**
    * POST /deliveries/:orderId/assign — self-assign (§6.6)
    * Pre-conditions: order AWAITING_DELIVERER_ASSIGN, same wilaya, isAvailable=true
    * Atomic: order.status→AWAITING_DELIVERER_PICKUP, profile.isAvailable→false

@@ -236,16 +236,16 @@ export class ProductsService {
 
     // ── Filters ───────────────────────────────────────────────────────────
     if (opts.farmerId) {
-      qb.andWhere('p.farmer_id = :farmerId', { farmerId: opts.farmerId });
+      qb.andWhere('p.farmerId = :farmerId', { farmerId: opts.farmerId });
     }
     if (opts.onlyAvailable) {
-      qb.andWhere('p.is_available = true');
+      qb.andWhere('p.isAvailable = true');
     }
     if (query.wilayaId) {
-      qb.andWhere('p.wilaya_id = :wilayaId', { wilayaId: query.wilayaId });
+      qb.andWhere('p.wilayaId = :wilayaId', { wilayaId: query.wilayaId });
     }
     if (query.categoryId) {
-      qb.andWhere('p.category_id = :categoryId', { categoryId: query.categoryId });
+      qb.andWhere('p.categoryId = :categoryId', { categoryId: query.categoryId });
     }
     if (query.minPrice !== undefined) {
       qb.andWhere('p.price >= :minPrice', { minPrice: query.minPrice });
@@ -254,7 +254,7 @@ export class ProductsService {
       qb.andWhere('p.price <= :maxPrice', { maxPrice: query.maxPrice });
     }
     if (query.dateFrom) {
-      qb.andWhere('p.created_at >= :dateFrom', {
+      qb.andWhere('p.createdAt >= :dateFrom', {
         dateFrom: new Date(query.dateFrom),
       });
     }
@@ -262,7 +262,7 @@ export class ProductsService {
       // Make dateTo inclusive of the full day (end of day in UTC)
       const endOfDay = new Date(query.dateTo);
       endOfDay.setUTCHours(23, 59, 59, 999);
-      qb.andWhere('p.created_at <= :dateTo', { dateTo: endOfDay });
+      qb.andWhere('p.createdAt <= :dateTo', { dateTo: endOfDay });
     }
     if (query.search) {
       qb.andWhere(
@@ -284,10 +284,10 @@ export class ProductsService {
         break;
       case ProductSortBy.DATE_DESC:
       default:
-        qb.orderBy('p.created_at', 'DESC');
+        qb.orderBy('p.createdAt', 'DESC');
     }
     // Secondary sort on images for consistent display_order
-    qb.addOrderBy('images.display_order', 'ASC');
+    qb.addOrderBy('images.displayOrder', 'ASC');
 
     // ── Pagination ────────────────────────────────────────────────────────
     const [data, total] = await qb

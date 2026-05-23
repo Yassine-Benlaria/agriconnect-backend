@@ -35,6 +35,29 @@ export class DeliveriesController {
   }
 
   /**
+   * GET /api/deliveries/current
+   * Returns the deliverer's currently active task (if any).
+   * MUST be declared before :orderId to avoid route collision.
+   */
+  @Get('current')
+  getCurrentTask(@CurrentUser('id') delivererId: string): Promise<Order | null> {
+    return this.deliveriesService.getCurrentTask(delivererId);
+  }
+
+  /**
+   * GET /api/deliveries/:orderId
+   * Returns full details of a specific delivery task.
+   * Can be viewed if it's assigned to the caller or unassigned in their wilaya.
+   */
+  @Get(':orderId')
+  getTaskDetail(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser('id') delivererId: string,
+  ): Promise<Order> {
+    return this.deliveriesService.getTaskDetail(orderId, delivererId);
+  }
+
+  /**
    * POST /api/deliveries/:orderId/assign
    * Self-assign an available order (§6.6).
    * 409 if already busy or order not available.

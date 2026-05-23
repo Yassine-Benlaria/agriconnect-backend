@@ -16,7 +16,8 @@
 6. [Deliveries](#6-deliveries)
 7. [Reviews](#7-reviews)
 8. [Admin](#8-admin)
-9. [Enum Reference](#9-enum-reference)
+9. [Categories](#9-categories)
+10. [Enum Reference](#10-enum-reference)
 
 ---
 
@@ -719,7 +720,47 @@ Authorization: Bearer <admin_token>
 
 ---
 
-## 8. Enum Reference
+## 9. Categories
+
+### 9.1 List All Categories
+```
+GET /categories
+Authorization: None
+```
+**Response `200`**
+```json
+[
+  { "id": 1, "name": "Fruits", "icon": "🍎" },
+  { "id": 2, "name": "Vegetables", "icon": "🥕" }
+]
+```
+
+---
+
+### 9.2 Create Category
+```
+POST /categories
+Authorization: Bearer <admin_token>
+```
+**Request Body**
+```json
+{
+  "name": "Dairy",
+  "icon": "🥛"
+}
+```
+**Response `201`**
+```json
+{
+  "id": 5,
+  "name": "Dairy",
+  "icon": "🥛"
+}
+```
+
+---
+
+## 10. Enum Reference
 
 ### `UserRole`
 | Value | Used for |

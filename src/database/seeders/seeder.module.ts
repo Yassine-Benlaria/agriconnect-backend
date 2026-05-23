@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseModule } from '../database.module';
 import { Wilaya } from '../../geo/entities/wilaya.entity';
 import { Commune } from '../../geo/entities/commune.entity';
+import { Category } from '../../products/entities/category.entity';
 import { SeederService } from './seeder.service';
 
 /**
@@ -16,7 +17,7 @@ import { SeederService } from './seeder.service';
 @Module({
   imports: [
     DatabaseModule,
-    TypeOrmModule.forFeature([Wilaya, Commune]),
+    TypeOrmModule.forFeature([Wilaya, Commune, Category]),
   ],
   providers: [SeederService],
   exports: [SeederService],

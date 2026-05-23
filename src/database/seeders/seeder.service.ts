@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wilaya } from '../../geo/entities/wilaya.entity';
 import { Commune } from '../../geo/entities/commune.entity';
+import { Category } from '../../products/entities/category.entity';
 import { WILAYAS_TO_SEED, WilayaSeedData } from './data/adrar.seed';
 
 /**
@@ -26,6 +27,8 @@ export class SeederService {
     private readonly wilayaRepository: Repository<Wilaya>,
     @InjectRepository(Commune)
     private readonly communeRepository: Repository<Commune>,
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
   ) {}
 
   /** Entry point — seeds all wilayas defined in WILAYAS_TO_SEED. */
@@ -36,10 +39,39 @@ export class SeederService {
       await this.seedWilaya(wilayaData);
     }
 
+    await this.seedCategories();
+
     this.logger.log('Database seed complete.');
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
+
+  private async seedCategories(): Promise<void> {
+    const categories = [
+      { id: 1, name: 'Fruits', icon: '🍎' },
+      { id: 2, name: 'Vegetables', icon: '🥕' },
+      { id: 3, name: 'Dates', icon: '🌴' },
+      { id: 4, name: 'Cereals', icon: '🌾' },
+      { id: 5, name: 'Dairy', icon: '🥛' },
+      { id: 6, name: 'Meat', icon: '🥩' },
+      { id: 7, name: 'Poultry', icon: '🍗' },
+    ];
+
+    let count = 0;
+    for (const cat of categories) {
+      const exists = await this.categoryRepository.existsBy({ id: cat.id });
+      if (!exists) {
+        await this.categoryRepository.save(this.categoryRepository.create(cat));
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      this.logger.log(`Seeded ${count} categories.`);
+    } else {
+      this.logger.log('Categories already seeded — skipping.');
+    }
+  }
 
   private async seedWilaya(data: WilayaSeedData): Promise<void> {
     // ── Idempotency check ──────────────────────────────────────────────────
