@@ -13,11 +13,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USERNAME'),
-        password: config.get<string>('DB_PASSWORD'),
-        database: config.get<string>('DB_NAME'),
+        
+        // Use your Neon URL from the .env file instead of individual fields
+        url: config.get<string>('DATABASE_URL'),
+
+        // Add the SSL properties right here!
+        ssl: true,
+        extra: {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        },
+
         // Load entities automatically from all modules
         autoLoadEntities: true,
         // Keep synchronize:true for MVP / development only.
